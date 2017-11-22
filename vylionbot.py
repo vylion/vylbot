@@ -12,7 +12,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-names = ["vylion's bot", "vylion bot", "vyl's bot", "vyl bot", "vylionbot", "bot de vyl"]
+names = ["vylion's bot", "vylion bot", "vyl's bot", "vyl bot", "vylbot", "vylionbot", "bot de vyl"]
 discoFire = False
 
 def error(bot, update, error):
