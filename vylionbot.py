@@ -3,132 +3,117 @@
 import sys, os
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram.error import *
+from telegram import ParseMode
 import logging
 import argparse
+import diceRoller as dice
+import textwrap
 
 # Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s - Vylionbot',
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
-names = ["vylion's bot", "vylion bot", "vyl's bot", "vyl bot", "vylbot", "vylionbot", "bot de vyl"]
-discoFire = False
+help_msg = """Reconozco los siguientes comandos:
+
+/start - Saludo
+/help - Envío este mensaje
+/roll - Tiro dados
+/quote [<autor>:] <mensaje> - Cito un <mensaje> con un <autor> opcional
+/me <mensaje> - Te describo haciendo <mensaje>"""
+
+idiot_msg = "you idiot. you big dunce. you utter buffoon"
 
 def error(bot, update, error):
-    logger.warn('Update "%s" caused error "%s"' % (update, error))
+    logger.warn('Update "{u}" caused error "{e}"'.format(u=update, e=error))
 
 def start(bot, update):
-    update.message.reply_text("Hola, soy el bot de pruebas de Vylion.")
+    update.message.reply_text("Hola, soy el bot personal de Vylion.")
+
+def whoami(bot, update):
+    msg = update.message
+    user = update.message.from_user
+    name = user.first_name + ' ' + user.last_name if user.last_name else user.first_name
+
+    answer = "Estamos en "
+    if msg.chat == "private":
+        answer += "un chat privado; "
+    else:
+        answer += '{title}, un chat de tipo "{type}"; '.format(title=msg.chat.title, type=msg.chat.type)
+    answer += "de id {cid}.\nEres {n}, ".format(cid=msg.chat.id, n=name)
+    if user.username:
+        answer += "con nombre de usuario {uname} y ".format(uname=user.username)
+    answer += "de id {uid}.\n\n".format(uid=user.id)
+
+    answer += "Tu mensaje tiene fecha de " + str(msg.date) + "."
+    msg.reply_text(answer)
+
+def get_comm_msg(update):
+    msg = update.message.text.split(None, maxsplit=1)
+    if len(msg) < 2:
+        return ""
+    return msg[1]
 
 def help(bot, update):
-    update.message.reply_text("""Los comandos que acepto son:
+    param = get_comm_msg(update).casefold().split()
+    if len(param) > 0:
+        if "roll" in param:
+            update.message.reply_text(textwrap.dedent("""/roll <tirada(s)>:
+            Se lanzan los dados descritos en el mensaje (usando notación de dados). Se pueden concatenar varias tiradas separándolas con ",", y se muestran los resultados por separado. Una tirada es una concatenación de dados separados con "+", sumando los resultados entre sí. También se pueden usar números enteros en vez de un dado (usando paréntesis para los números negativos), o parametrizar cualquier valor entero (como X o Y en "XdY") usando expresiones de una tirada.
 
-/start - saludo
-/help - Envío este mensaje.
-/echo mensaje - Repito el mensaje.
-/quote nombre: mensaje - Cito a [nombre] diciendo [mensaje].
-/me mensaje - Te describo usando [mensaje].
+            No compatible con dados Fudge ni con dados explosivos."""))
+        if "quote" in param:
+            update.message.reply_text(textwrap.dedent("""/quote [<autor>:] <mensaje>:
+            Crea una cita con el mensaje dado. No hace falta poner comillas en el mensaje, ya las añado yo."""))
+        if "me" in param:
+            update.message.reply_text(textwrap.dedent("""/me <mensaje>:
+            Crea un mensaje repitiendo el mensaje dado pero precedido por tu nombre.
 
-También respondo a varias palabras clave por cuenta propia.
-    """)
-
-def echo(bot, update):
-    text = update.message.text.split(None, maxsplit=1)
-    if len(text) == 2:
-        text = text[1]
-        print("Processing echo: " + text)
-        if update.message.text.startswith("/echo"):
-            update.message.reply_text("Qué manía con los nested /echo")
-        else:
-            bot.sendMessage(update.message.chat.id, "\"" + text + "\"")
+            Inspirado en el comando "/me" de World of Warcraft."""))
+        if "idiot" in param:
+            update.message.reply_text(textwrap.dedent("""/idiot:
+            Insulta adecuadamente. Si el mensaje con el comando es una respuesta a otro, responde al mismo."""))
+        return
+    update.message.reply_text(help_msg)
 
 def quote(bot, update):
-    text = update.message.text.split(None, maxsplit=1)
-    if len(text) == 2:
-        text = text[1]
-        text = text.split(":", maxsplit=1)
-        print("Processing quote: \"" + text[1] + "\" by \"" + text[0] + "\"")
-        if len(text) == 2:
-            bot.sendMessage(update.message.chat.id, "\"" + text[1] + "\"\n- " + text[0])
-        else:
-            update.message.reply_text("Formato incorrecto. Es:\n/quote nombre: mensaje")
+    msg = get_comm_msg(update)
+    if len(msg) > 0:
+        msg = msg.split(":", maxsplit=1)
+        print('Processing quote: ' + str(msg))
+        if len(msg) == 2:
+            bot.sendMessage(update.message.chat.id, "\"" + msg[1].strip() + "\"\n- " + msg[0].strip())
+        elif len(msg) == 1:
+            bot.sendMessage(update.message.chat.id, "\"" + msg[0] + "\"")
     else:
         update.message.reply_text("Formato incorrecto. Es:\n/quote nombre: mensaje")
 
 def meQuote(bot, update):
-    text = update.message.text.split(None, maxsplit=1)
-    if len(text) > 1:
-        text = text[1]
-        print("Processing *me* quote: " + text)
+    msg = get_comm_msg(update)
+    if len(msg) > 0:
+        print('Processing "me" quote: ' + text)
         username = update.message.from_user.name
         bot.sendMessage(update.message.chat.id, username + " " + text)
 
-def mentioned(update):
-    text = update.message.text.casefold()
-    for name in names:
-        if name in text:
-            update.message.reply_text("That's me!")
-            return True
-    return False
+def roll(bot, update):
+    msg = get_comm_msg(update)
+    if len(msg) > 0:
+        print('Processing roll: ' + msg)
+        try:
+            roll_result = dice.parse_roll(msg)
+            update.message.reply_text(update.message.from_user.name + roll_result, parse_mode=ParseMode.MARKDOWN)
+        except:
+            update.message.reply_text('Formato incorrecto. Consulta "/help roll" para más información')
 
-def read(bot, update):
-    text = update.message.text.casefold()
-
-    messaged = False
-    if "biene" in text:
-        update.message.reply_text("Alessio")
-        messaged = True
-    if "lmao" in text:
-        update.message.reply_text("ayy")
-        messaged = True
-    elif "ayy" in text:
-        update.message.reply_text("lmao")
-        messaged = True
-    elif "qyy" in text:
-        update.message.reply_text(">failing this hard")
-        messaged = True
-    if "fire in the" in text:
-        global discoFire
-        if "taco bell" in text:
-            discoFire = True
-        if discoFire:
-            update.message.reply_text("Fire in the Gates of Hell!")
-            discoFire = False
-        else:
-            update.message.reply_text("Fire in the Taco Bell!")
-            discoFire = True
-        messaged = True
-    if ("danger danger" in text) or ("danger, danger" in text):
-        update.message.reply_text("High Voltage!")
-        messaged = True
-    if "when we touch" in text:
-        update.message.reply_text("When we kiss!")
-        messaged = True
-    if "h3h3" in text:
-        update.message.reply_text("Wow Ethan, great moves, keep it up! Proud of you")
-        messaged = True
-    if "exodia" in text:
-        update.message.reply_text("EXODIA, ANIQUILA")
-        messaged = True
-    if "kebab" in text:
-        update.message.reply_text("https://www.youtube.com/watch?v=ocW3fBqPQkU")
-        messaged = True
-    if ("vaporwave" in text) or ("v a p o r w a v e" in text) or ("﻿ｖａｐｏｒｗａｖｅ" in text):
-        update.message.reply_text("ＡＥＳＴＨＥＴＩＣＳ")
-        messaged = True
-    elif ("aesthetics" in text) or ("a e s t h e t i c s" in text) or ("﻿﻿ａｅｓｔｈｅｔｉｃｓ" in text):
-        update.message.reply_text("﻿﻿ｎｉｃｅ")
-        messaged = True
-    if "me voy" in text and str(chat.id) == "-1001036575277":
-        update.message.reply_text("﻿﻿\"Me voy del Whatsapp, adiós.\"")
-        messaged = True
-
-    if not messaged:
-        mentioned(update)
+def idiot(bot, update):
+    message = update.message.reply_to_message
+    if message:
+        message.reply_text(idiot_msg)
+    else:
+        bot.sendMessage(update.message.chat.id, username + " " + text)
 
 def main():
-
     parser = argparse.ArgumentParser(description='A Telegram markov bot.')
     parser.add_argument('token', metavar='TOKEN', help='The Bot Token to work with the Telegram Bot API')
 
@@ -145,11 +130,14 @@ def main():
     dp.add_handler(CommandHandler("help", help))
     dp.add_handler(CommandHandler("me", meQuote))
     dp.add_handler(CommandHandler("quote", quote))
+    dp.add_handler(CommandHandler("roll", roll))
+    dp.add_handler(CommandHandler("r", roll))
+    dp.add_handler(CommandHandler("idiot", idiot))
     # dp.add_handler(CommandHandler("stop", stop))
 
     # on noncommand i.e message - echo the message on Telegram
     # dp.add_handler(MessageHandler(Filters.text, echo))
-    dp.add_handler(MessageHandler(Filters.text, read))
+    # dp.add_handler(MessageHandler(Filters.text, read))
 
     # log all errors
     dp.add_error_handler(error)
