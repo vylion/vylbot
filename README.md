@@ -2,4 +2,4 @@
 
 Bot made to experiment and play around with the Telegram bot API, and for the enjoyment of my friends and me.
 
-Remade from scratch, based on my old project for this bot, written in Java.
+Rewritten on Python from on my old project for this bot [telegram_bot_testing](https://gitlab.com/vylion/telegram_bot_testing), written in Java.
