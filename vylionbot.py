@@ -111,6 +111,7 @@ def idiot(bot, update):
     if message:
         message.reply_text(idiot_msg)
     else:
+        username = update.message.from_user.username
         bot.sendMessage(update.message.chat.id, username + " " + text)
 
 def main():
