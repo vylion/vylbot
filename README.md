@@ -1,4 +1,4 @@
-# Vylionbot
+# Vylbot
 
 Bot made to experiment and play around with the Telegram bot API, and for the enjoyment of my friends and me.
 
